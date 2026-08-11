@@ -16,6 +16,9 @@ Erste Datenquelle: **PQI-DA smart** über Modbus TCP.
 | Modbus-Quelle mit Blocklesen und fester Taktung | steht, Registerkarte offen |
 | MQTT-Quelle (HA-Broker oder eigener Broker) | steht |
 | Geräteprofile als YAML, beliebig erweiterbar | steht |
+| Profil Shelly Pro 3EM | steht, aus offizieller Doku |
+| Profil PQI-DA smart (Schnellblock 10 ms) | steht, aus offizieller Datenpunktliste |
+| Register-Scanner (`tools/scan_modbus.py`) | steht |
 | Mehrere Quellen parallel, je eigenes Intervall | steht |
 | Glättung + Energieintegration + Persistenz | steht |
 | Config Flow, Diagnose-Sensoren, HACS-Metadaten | steht |
@@ -77,6 +80,29 @@ neu laden – das Profil steht im Dialog zur Auswahl. Mitgeliefert sind aktuell
 Minimal reicht ein einziger Wert: Aus der Summenwirkleistung bildet die
 Integration Bezug/Lieferung, Scheinleistung und die Energiezähler selbst.
 
+## Vorzeichen und Richtung
+
+Das Telegramm hat **je Richtung ein eigenes Feld** (Bezug und Lieferung getrennt),
+Messgeräte wie das PQI-DA smart liefern dagegen **einen vorzeichenbehafteten Wert**.
+Die Integration übernimmt die Aufteilung: positiver Wert → Bezug, negativer →
+Lieferung. Erwartet wird also die Konvention *positiv = Bezug aus dem Netz*; zählt
+das Gerät umgekehrt, gibt es im Dialog den Schalter *Vorzeichen umkehren*.
+
+## Register herausfinden
+
+Für Geräte ohne fertiges Profil liegt ein Scanner bei:
+
+```bash
+pip install pymodbus
+python3 tools/scan_modbus.py 192.168.1.50 --start 0 --end 2000
+python3 tools/scan_modbus.py 192.168.1.50 --watch 1013     # eine Adresse beobachten
+```
+
+Der Scan zeigt nur Werte, die als Spannung, Strom, Leistung oder Frequenz
+plausibel sind, und deutet jedes Registerpaar in beiden Wortreihenfolgen.
+Mit `--watch` einen großen Verbraucher schalten – welcher Wert passend
+mitgeht, ist das gesuchte Register.
+
 ## Installation
 
 1. Repository bei GitHub anlegen, Inhalt pushen, Release mit Tag `0.1.0` erzeugen
@@ -94,10 +120,10 @@ Integration Bezug/Lieferung, Scheinleistung und die Energiezähler selbst.
 
 ## Offene Punkte
 
-1. **Registerkarte PQI-DA smart** (`register_maps.py`) – Adressen sind Platzhalter.
-   Zu klären: Datenklasse (10-ms-Momentanwerte vs. aggregiert), Adressbasis,
-   Input-/Holding-Register, Wortreihenfolge, Vorzeichenkonvention
-   (positiv = Bezug aus dem Netz).
+1. **PQI-DA smart am Gerät verifizieren** – die Adressen stammen aus der
+   offiziellen Datenpunktliste, drei Dinge sind aber gerätabhängig: Input- oder
+   Holding-Register, Adressbasis (0- oder 1-basiert) und die Vorzeichenrichtung.
+   Details stehen im Profil; bei Abweichungen hilft `tools/scan_modbus.py`.
 2. **Abtastung**: Ein Modbus-Poll liefert den aktuellen Wert, keinen Puffer.
    Echte 100-ms-Mittelwerte aus 10-ms-Daten erfordern 100 Polls/s; realistischer
    ist ein Poll-Intervall von 100 ms mit Glättung. Der Zähler `overruns` in
