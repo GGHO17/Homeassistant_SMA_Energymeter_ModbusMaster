@@ -1,0 +1,36 @@
+name: A. Eberle PQI-DA smart
+protocol: modbus
+default_interval_ms: 100
+word_swap: false
+notes: >
+  ADRESSEN SIND PLATZHALTER. Vor dem Einsatz gegen die Modbus-Doku pruefen:
+  Datenklasse (10-ms-Momentanwerte vs. aggregiert), Adressbasis (0- oder
+  1-basiert), Input- oder Holding-Register, Wortreihenfolge.
+  Vorzeichen: p > 0 = Bezug aus dem Netz. Zaehlt das Geraet umgekehrt,
+  bei allen p/q-Eintraegen scale auf -1.0 setzen.
+
+registers:
+  # Summenwerte
+  - {key: p,         address: 1000, dtype: float32, scale: 1.0}
+  - {key: q,         address: 1002, dtype: float32, scale: 1.0}
+  - {key: s,         address: 1004, dtype: float32, scale: 1.0}
+  - {key: cos_phi,   address: 1006, dtype: float32, scale: 1.0}
+  - {key: frequency, address: 1008, dtype: float32, scale: 1.0}
+  # L1
+  - {key: p,       phase: l1, address: 1010, dtype: float32}
+  - {key: q,       phase: l1, address: 1012, dtype: float32}
+  - {key: s,       phase: l1, address: 1014, dtype: float32}
+  - {key: current, phase: l1, address: 1016, dtype: float32}
+  - {key: voltage, phase: l1, address: 1018, dtype: float32}
+  # L2
+  - {key: p,       phase: l2, address: 1020, dtype: float32}
+  - {key: q,       phase: l2, address: 1022, dtype: float32}
+  - {key: s,       phase: l2, address: 1024, dtype: float32}
+  - {key: current, phase: l2, address: 1026, dtype: float32}
+  - {key: voltage, phase: l2, address: 1028, dtype: float32}
+  # L3
+  - {key: p,       phase: l3, address: 1030, dtype: float32}
+  - {key: q,       phase: l3, address: 1032, dtype: float32}
+  - {key: s,       phase: l3, address: 1034, dtype: float32}
+  - {key: current, phase: l3, address: 1036, dtype: float32}
+  - {key: voltage, phase: l3, address: 1038, dtype: float32}

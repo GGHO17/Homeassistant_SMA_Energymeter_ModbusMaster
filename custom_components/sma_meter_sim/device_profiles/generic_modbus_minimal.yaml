@@ -1,0 +1,9 @@
+name: Generisch - nur Summenwirkleistung (Modbus)
+protocol: modbus
+default_interval_ms: 1000
+notes: >
+  Kleinstmoegliche Konfiguration: nur die Summenwirkleistung. Die Integration
+  bildet daraus Bezug/Lieferung, Scheinleistung und die Energiezaehler.
+  Phasenwerte werden dann nicht gemeldet.
+registers:
+  - {key: p, address: 0, dtype: float32, scale: 1.0, input_register: true}

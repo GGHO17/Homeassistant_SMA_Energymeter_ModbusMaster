@@ -1,0 +1,12 @@
+name: Generisch - JSON ueber MQTT
+protocol: mqtt
+default_interval_ms: 0
+notes: >
+  Beispiel fuer ein Geraet, das ein JSON-Objekt auf ein Topic legt.
+  value_path ist der punktseparierte Pfad im JSON; fehlt er, wird der
+  Payload als nackte Zahl gelesen.
+topics:
+  - {topic: "energy/meter/total", key: p, value_path: "power.total", scale: 1.0}
+  - {topic: "energy/meter/total", key: p, phase: l1, value_path: "power.l1"}
+  - {topic: "energy/meter/total", key: p, phase: l2, value_path: "power.l2"}
+  - {topic: "energy/meter/total", key: p, phase: l3, value_path: "power.l3"}
