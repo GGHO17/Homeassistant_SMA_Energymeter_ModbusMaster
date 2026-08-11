@@ -1,0 +1,76 @@
+"""SMA Meter Simulator - sendet Energy-Meter-Telegramme aus beliebigen Quellen."""
+
+from __future__ import annotations
+
+import logging
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant
+
+from .const import (
+    CONF_INTERFACE_IP,
+    CONF_SEND_INTERVAL_MS,
+    CONF_SERIAL,
+    CONF_SMOOTHING_MS,
+    CONF_SOURCES,
+    CONF_SUSY_ID,
+    DEFAULT_SEND_INTERVAL_MS,
+    DEFAULT_SMOOTHING_MS,
+    DOMAIN,
+)
+from .coordinator import MeterSimulator
+from .factory import async_build_sources
+from .pipeline import MeterPipeline
+from .speedwire import SpeedwireSender
+
+_LOGGER = logging.getLogger(__name__)
+PLATFORMS = [Platform.SENSOR]
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    data = {**entry.data, **entry.options}
+
+    pipeline = MeterPipeline(
+        smoothing_s=data.get(CONF_SMOOTHING_MS, DEFAULT_SMOOTHING_MS) / 1000
+    )
+    sender = SpeedwireSender(
+        susy_id=data[CONF_SUSY_ID],
+        serial=data[CONF_SERIAL],
+        interface_ip=data.get(CONF_INTERFACE_IP) or None,
+    )
+    sim = MeterSimulator(
+        hass,
+        sender,
+        pipeline,
+        send_interval_ms=data.get(CONF_SEND_INTERVAL_MS, DEFAULT_SEND_INTERVAL_MS),
+        entry_id=entry.entry_id,
+    )
+
+    for source in await async_build_sources(
+        hass, data.get(CONF_SOURCES, []), pipeline.feed
+    ):
+        sim.add_source(source)
+
+    if not sim.sources:
+        _LOGGER.warning(
+            "Keine nutzbare Quelle konfiguriert - es werden Nullwerte gesendet"
+        )
+
+    await sim.async_start()
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = sim
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(_async_reload))
+    return True
+
+
+async def _async_reload(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok:
+        sim: MeterSimulator = hass.data[DOMAIN].pop(entry.entry_id)
+        await sim.async_stop()
+    return unload_ok

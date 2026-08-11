@@ -1,0 +1,12 @@
+{
+  "domain": "sma_meter_sim",
+  "name": "SMA Meter Simulator",
+  "codeowners": ["@CHANGEME"],
+  "config_flow": true,
+  "documentation": "https://github.com/CHANGEME/ha-sma-meter-sim",
+  "issue_tracker": "https://github.com/CHANGEME/ha-sma-meter-sim/issues",
+  "iot_class": "local_push",
+  "after_dependencies": ["mqtt"],
+  "requirements": ["pymodbus>=3.6.0", "aiomqtt>=2.0.0"],
+  "version": "0.2.0"
+}
