@@ -1,0 +1,158 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Simulierter Zaehler",
+        "description": "Identitaet des Geraets, das im Netzwerk erscheinen soll. Der Wechselrichter muss spaeter auf genau diese Seriennummer konfiguriert werden.",
+        "data": {
+          "device_type": "Geraetetyp",
+          "serial": "Seriennummer",
+          "interface_ip": "IP des sendenden Interface (leer = automatisch)",
+          "smoothing_ms": "Glaettungsfenster (ms)",
+          "send_interval_ms": "Sendeintervall (ms)"
+        }
+      },
+      "menu": {
+        "title": "Datenquellen",
+        "menu_options": {
+          "add_modbus": "Modbus-Quelle hinzufuegen",
+          "add_mqtt": "MQTT-Quelle hinzufuegen",
+          "remove_source": "Quelle entfernen",
+          "finish": "Fertig"
+        }
+      },
+      "add_modbus": {
+        "title": "Modbus-Quelle",
+        "description": "Geraeteprofil waehlen oder 'Eigene Zuordnung' fuer eine manuelle Registerkarte.",
+        "data": {
+          "name": "Name der Quelle",
+          "host": "Host / IP",
+          "port": "Port",
+          "unit": "Unit-ID",
+          "profile": "Geraeteprofil",
+          "interval_ms": "Abfrageintervall (ms)",
+          "word_swap": "Wortreihenfolge tauschen",
+          "invert_sign": "Vorzeichen umkehren (Bezug/Lieferung vertauscht)"
+        }
+      },
+      "map_register": {
+        "title": "Register zuordnen",
+        "description": "Bereits erfasst: {count}. Haken bei 'Weiteres hinzufuegen' entfernen, um abzuschliessen.",
+        "data": {
+          "key": "Messgroesse",
+          "phase": "Phase (leer = Summe)",
+          "address": "Registeradresse",
+          "dtype": "Datentyp",
+          "scale": "Faktor",
+          "input_register": "Input-Register (aus = Holding)",
+          "add_another": "Weiteres Register hinzufuegen"
+        }
+      },
+      "add_mqtt": {
+        "title": "MQTT-Quelle",
+        "description": "Standard ist der Broker der HA-MQTT-Integration. Fuer einen anderen Broker den Haken entfernen und die Zugangsdaten eintragen.",
+        "data": {
+          "name": "Name der Quelle",
+          "use_ha_broker": "Broker von Home Assistant verwenden",
+          "broker": "Broker-Host",
+          "port": "Broker-Port",
+          "username": "Benutzername",
+          "password": "Passwort",
+          "profile": "Geraeteprofil"
+        }
+      },
+      "map_topic": {
+        "title": "Topic zuordnen",
+        "description": "Bereits erfasst: {count}. value_path nur bei JSON-Payload (z. B. power.total).",
+        "data": {
+          "topic": "Topic",
+          "key": "Messgroesse",
+          "phase": "Phase (leer = Summe)",
+          "value_path": "Pfad im JSON (optional)",
+          "scale": "Faktor",
+          "add_another": "Weiteres Topic hinzufuegen"
+        }
+      },
+      "remove_source": {
+        "title": "Quelle entfernen",
+        "data": {"source_index": "Quelle"}
+      }
+    },
+    "error": {"broker_required": "Ohne HA-Broker muss ein Broker-Host angegeben werden."},
+    "abort": {"already_configured": "Diese Seriennummer ist bereits eingerichtet."}
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "SMA Meter Simulator",
+        "menu_options": {
+          "timing": "Takt und Netzwerk",
+          "add_modbus": "Modbus-Quelle hinzufuegen",
+          "add_mqtt": "MQTT-Quelle hinzufuegen",
+          "remove_source": "Quelle entfernen",
+          "finish": "Speichern"
+        }
+      },
+      "timing": {
+        "title": "Takt und Netzwerk",
+        "data": {
+          "smoothing_ms": "Glaettungsfenster (ms)",
+          "send_interval_ms": "Sendeintervall (ms)",
+          "interface_ip": "IP des sendenden Interface"
+        }
+      },
+      "add_modbus": {
+        "title": "Modbus-Quelle",
+        "data": {
+          "name": "Name der Quelle",
+          "host": "Host / IP",
+          "port": "Port",
+          "unit": "Unit-ID",
+          "profile": "Geraeteprofil",
+          "interval_ms": "Abfrageintervall (ms)",
+          "word_swap": "Wortreihenfolge tauschen",
+          "invert_sign": "Vorzeichen umkehren"
+        }
+      },
+      "add_mqtt": {
+        "title": "MQTT-Quelle",
+        "data": {
+          "name": "Name der Quelle",
+          "use_ha_broker": "Broker von Home Assistant verwenden",
+          "broker": "Broker-Host",
+          "port": "Broker-Port",
+          "username": "Benutzername",
+          "password": "Passwort",
+          "profile": "Geraeteprofil"
+        }
+      },
+      "map_register": {
+        "title": "Register zuordnen",
+        "data": {
+          "key": "Messgroesse",
+          "phase": "Phase",
+          "address": "Registeradresse",
+          "dtype": "Datentyp",
+          "scale": "Faktor",
+          "input_register": "Input-Register",
+          "add_another": "Weiteres Register hinzufuegen"
+        }
+      },
+      "map_topic": {
+        "title": "Topic zuordnen",
+        "data": {
+          "topic": "Topic",
+          "key": "Messgroesse",
+          "phase": "Phase",
+          "value_path": "Pfad im JSON",
+          "scale": "Faktor",
+          "add_another": "Weiteres Topic hinzufuegen"
+        }
+      },
+      "remove_source": {
+        "title": "Quelle entfernen",
+        "data": {"source_index": "Quelle"}
+      }
+    }
+  }
+}
