@@ -92,6 +92,7 @@ class MeterPipeline:
         self.energy_sum = EnergyIntegrator()
         self.energy_phase = {p: EnergyIntegrator() for p in PHASES}
         self.last_update: float | None = None
+        self._has_sum_power = False
 
     def _name(self, key: str, phase: str | None) -> str:
         return f"{phase}.{key}" if phase else key
@@ -105,9 +106,25 @@ class MeterPipeline:
         now = time.monotonic()
         self._values[name] = smoother.add(float(value), now)
         self.last_update = now
+
         if key == "p":
-            target = self.energy_sum if phase is None else self.energy_phase[phase]
-            target.update(self._values[name], now)
+            if phase is None:
+                self._has_sum_power = True
+                self.energy_sum.update(self._values[name], now)
+            else:
+                self.energy_phase[phase].update(self._values[name], now)
+                # Ist kein Summenregister konfiguriert, die Summe aus den
+                # Phasen bilden - sonst bliebe die gesendete Leistung 0.
+                if not self._has_sum_power:
+                    total = sum(self._values.get(f"{p}.p", 0.0) for p in PHASES)
+                    self._values["p"] = total
+                    self.energy_sum.update(total, now)
+
+        # Gleiches Prinzip fuer Blind- und Scheinleistung
+        elif key in ("q", "s") and phase is not None and key not in self._values:
+            self._values[key] = sum(
+                self._values.get(f"{p}.{key}", 0.0) for p in PHASES
+            )
 
     def feed_many(self, items: Iterable[tuple[str, float, str | None]]) -> None:
         for key, value, phase in items:
