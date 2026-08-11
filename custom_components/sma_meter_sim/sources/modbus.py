@@ -117,14 +117,21 @@ class ModbusSource(Source):
         self._word_swap = word_swap
         self._client = None
         self._task: asyncio.Task | None = None
+        self._unit_kwarg: str | None = None
         self.cycle_time_ms: float = 0.0
         self.overruns = 0
+        self.connected = False
 
     async def async_start(self) -> None:
         from pymodbus.client import AsyncModbusTcpClient
 
         self._client = AsyncModbusTcpClient(self._host, port=self._port)
-        await self._client.connect()
+        self.connected = await self._client.connect()
+        if not self.connected:
+            _LOGGER.warning(
+                "Modbus-Quelle %s: keine Verbindung zu %s:%s - es wird weiter "
+                "versucht", self.name, self._host, self._port
+            )
         self._task = asyncio.create_task(self._run(), name=f"{self.name}_poll")
 
     async def async_stop(self) -> None:
@@ -139,17 +146,37 @@ class ModbusSource(Source):
             self._client.close()
             self._client = None
 
+    def _unit_kwargs(self, func) -> dict:
+        """pymodbus hat den Parameter mehrfach umbenannt: slave -> device_id.
+
+        Signatur einmalig auswerten und merken, statt auf eine Version zu wetten.
+        """
+        if self._unit_kwarg is None:
+            import inspect
+
+            params = inspect.signature(func).parameters
+            for candidate in ("device_id", "slave", "unit"):
+                if candidate in params:
+                    self._unit_kwarg = candidate
+                    break
+            else:
+                self._unit_kwarg = ""  # Client nimmt die Adresse anders entgegen
+            if self._unit_kwarg:
+                _LOGGER.debug(
+                    "pymodbus verwendet Parameter '%s' fuer die Unit-ID",
+                    self._unit_kwarg,
+                )
+        return {self._unit_kwarg: self._unit} if self._unit_kwarg else {}
+
     async def _read_block(self, block: list[RegisterDef]) -> None:
         start = block[0].address
         count = max(r.address + r.words for r in block) - start
-        if block[0].input_register:
-            result = await self._client.read_input_registers(
-                start, count=count, slave=self._unit
-            )
-        else:
-            result = await self._client.read_holding_registers(
-                start, count=count, slave=self._unit
-            )
+        func = (
+            self._client.read_input_registers
+            if block[0].input_register
+            else self._client.read_holding_registers
+        )
+        result = await func(start, count=count, **self._unit_kwargs(func))
         if result.isError():
             raise OSError(str(result))
         words = result.registers
@@ -171,8 +198,16 @@ class ModbusSource(Source):
                 raise
             except Exception as err:  # noqa: BLE001 - Quelle darf HA nicht killen
                 self.error_count += 1
-                self.last_error = str(err)
-                _LOGGER.debug("Modbus-Poll fehlgeschlagen: %s", err)
+                self.last_error = f"{type(err).__name__}: {err}"
+                # Erster Fehler und danach in groesseren Abstaenden sichtbar
+                # loggen - sonst scheitert das Pollen stumm.
+                if self.error_count == 1 or self.error_count % 100 == 0:
+                    _LOGGER.warning(
+                        "Modbus-Quelle %s: Lesen fehlgeschlagen (%s. Fehler): %s",
+                        self.name,
+                        self.error_count,
+                        self.last_error,
+                    )
                 await asyncio.sleep(min(1.0, self._interval * 10))
             self.cycle_time_ms = (time.monotonic() - t0) * 1000
 
@@ -190,6 +225,10 @@ class ModbusSource(Source):
         data = super().diagnostics()
         data.update(
             {
+                "connected": self.connected,
+                "host": f"{self._host}:{self._port}",
+                "unit": self._unit,
+                "registers": len(self._registers),
                 "cycle_ms": round(self.cycle_time_ms, 2),
                 "overruns": self.overruns,
                 "interval_ms": self._interval * 1000,
