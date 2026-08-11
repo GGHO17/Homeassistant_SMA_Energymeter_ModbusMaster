@@ -1,0 +1,20 @@
+# Vorlage fuer ein eigenes Geraeteprofil.
+# Kopieren nach <config>/sma_meter_sim_profiles/<meinname>.yaml,
+# dann Integration neu laden - das Profil erscheint im Dialog.
+#
+# key:   p | q | s | current | voltage | cos_phi | frequency
+# phase: l1 | l2 | l3 | weglassen fuer den Summenwert
+# dtype: int16 | uint16 | int32 | uint32 | int64 | float32 | float64
+# scale: Faktor auf W / var / VA / A / V / Hz (z. B. 0.1 oder -1.0)
+
+name: Mein Geraet
+protocol: modbus        # modbus oder mqtt
+default_interval_ms: 1000
+word_swap: false        # true bei vertauschter Wortreihenfolge
+
+registers:
+  - {key: p, address: 0, dtype: float32, scale: 1.0, input_register: true}
+
+# Fuer protocol: mqtt stattdessen:
+# topics:
+#   - {topic: "geraet/leistung", key: p, scale: 1.0, value_path: null}
