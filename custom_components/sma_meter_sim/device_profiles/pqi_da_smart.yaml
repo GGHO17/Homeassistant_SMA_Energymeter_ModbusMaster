@@ -1,36 +1,49 @@
-name: A. Eberle PQI-DA smart
+name: A. Eberle PQI-DA smart (Schnellblock 10 ms)
 protocol: modbus
 default_interval_ms: 100
 word_swap: false
 notes: >
-  ADRESSEN SIND PLATZHALTER. Vor dem Einsatz gegen die Modbus-Doku pruefen:
-  Datenklasse (10-ms-Momentanwerte vs. aggregiert), Adressbasis (0- oder
-  1-basiert), Input- oder Holding-Register, Wortreihenfolge.
-  Vorzeichen: p > 0 = Bezug aus dem Netz. Zaehlt das Geraet umgekehrt,
-  bei allen p/q-Eintraegen scale auf -1.0 setzen.
+  Adressen aus der offiziellen Modbus-Datenpunktliste (IL_PQI-DA-smart_Modbus_DE,
+  a-eberle.de). Verwendet wird der kompakte Block ab Adresse 100 - das ist die
+  schnelle Klasse (Halbperioden-/10-ms-Werte, gedacht fuer Istwert-Rueckfuehrung).
+  Alles liegt in einem einzigen zusammenhaengenden Lesevorgang von 104 Registern
+  (Adresse 102..142), das haelt die Zykluszeit klein.
+
+  Register: Holding (input_register: false) - so liefert das Geraet die Daten.
+
+  Adresse 138 (P_ges) wird als Gesamt-Wirkleistung verwendet. Die Liste
+  bezeichnet sie als Grundschwingungs-Gesamtwirkleistung; laut Ruecksprache
+  passt sie fuer diesen Zweck. Soll stattdessen aus den Straengen summiert
+  werden, einfach die Zeile mit Adresse 138 auskommentieren - die Integration
+  bildet die Summe dann selbst aus L1..L3.
+
+  Zu pruefen beim ersten Lauf:
+   - Vorzeichen: das Geraet liefert P vorzeichenbehaftet. Positiv muss Bezug aus
+     dem Netz sein; zeigt der Zaehler es andersherum, im Dialog den Schalter
+     "Vorzeichen umkehren" setzen.
+   - Adressbasis: liefert der Scan Werte um 1 Register verschoben, alle Adressen
+     um 1 korrigieren (0- vs. 1-basierte Zaehlung).
+
+  Alternative langsamere Klasse mit Strang-Scheinleistung: l1_p 1946, l1_q 1948,
+  l1_s 1950, l2_p 1952, l2_q 1954, l2_s 1956, l3_p 1958 usw.
 
 registers:
-  # Summenwerte
-  - {key: p,         address: 1000, dtype: float32, scale: 1.0}
-  - {key: q,         address: 1002, dtype: float32, scale: 1.0}
-  - {key: s,         address: 1004, dtype: float32, scale: 1.0}
-  - {key: cos_phi,   address: 1006, dtype: float32, scale: 1.0}
-  - {key: frequency, address: 1008, dtype: float32, scale: 1.0}
-  # L1
-  - {key: p,       phase: l1, address: 1010, dtype: float32}
-  - {key: q,       phase: l1, address: 1012, dtype: float32}
-  - {key: s,       phase: l1, address: 1014, dtype: float32}
-  - {key: current, phase: l1, address: 1016, dtype: float32}
-  - {key: voltage, phase: l1, address: 1018, dtype: float32}
-  # L2
-  - {key: p,       phase: l2, address: 1020, dtype: float32}
-  - {key: q,       phase: l2, address: 1022, dtype: float32}
-  - {key: s,       phase: l2, address: 1024, dtype: float32}
-  - {key: current, phase: l2, address: 1026, dtype: float32}
-  - {key: voltage, phase: l2, address: 1028, dtype: float32}
-  # L3
-  - {key: p,       phase: l3, address: 1030, dtype: float32}
-  - {key: q,       phase: l3, address: 1032, dtype: float32}
-  - {key: s,       phase: l3, address: 1034, dtype: float32}
-  - {key: current, phase: l3, address: 1036, dtype: float32}
-  - {key: voltage, phase: l3, address: 1038, dtype: float32}
+  # Frequenz und Spannungen
+  - {key: frequency, address: 102, dtype: float32, input_register: false}
+  - {key: voltage, phase: l1, address: 104, dtype: float32, input_register: false}
+  - {key: voltage, phase: l2, address: 106, dtype: float32, input_register: false}
+  - {key: voltage, phase: l3, address: 108, dtype: float32, input_register: false}
+  # Straenge
+  - {key: current, phase: l1, address: 118, dtype: float32, input_register: false}
+  - {key: current, phase: l2, address: 120, dtype: float32, input_register: false}
+  - {key: current, phase: l3, address: 122, dtype: float32, input_register: false}
+  # Leistungen je Strang (vorzeichenbehaftet)
+  - {key: p, phase: l1, address: 126, dtype: float32, input_register: false}
+  - {key: q, phase: l1, address: 128, dtype: float32, input_register: false}
+  - {key: p, phase: l2, address: 130, dtype: float32, input_register: false}
+  - {key: q, phase: l2, address: 132, dtype: float32, input_register: false}
+  - {key: p, phase: l3, address: 134, dtype: float32, input_register: false}
+  - {key: q, phase: l3, address: 136, dtype: float32, input_register: false}
+  # Gesamtwerte
+  - {key: p, address: 138, dtype: float32, input_register: false}
+  - {key: q, address: 140, dtype: float32, input_register: false}

@@ -1,0 +1,37 @@
+name: Shelly Pro 3EM (Modbus TCP)
+protocol: modbus
+default_interval_ms: 200
+word_swap: false
+notes: >
+  Registerkarte aus der offiziellen Shelly-Gen2-Doku (EM-Komponente).
+  Die dortige Schreibweise 31013 bedeutet Input-Register mit Offset 1013.
+  Voraussetzung: Modbus im Geraet aktiviert (Einstellungen > Modbus TCP).
+  Vorzeichen: Shelly meldet Bezug positiv, Einspeisung negativ - passt zur
+  Erwartung der Integration. Bei falsch herum angeklemmten Wandlern besser
+  im Shelly selbst korrigieren ('reverse' je Phase) als hier.
+  Ein zweiter EM auf dem Geraet liegt um 80 Register hoeher.
+
+registers:
+  # Summenwerte
+  - {key: p, address: 1013, dtype: float32, input_register: true}   # 31013 W
+  - {key: s, address: 1015, dtype: float32, input_register: true}   # 31015 VA
+  # Phase A
+  - {key: voltage, phase: l1, address: 1020, dtype: float32, input_register: true}
+  - {key: current, phase: l1, address: 1022, dtype: float32, input_register: true}
+  - {key: p,       phase: l1, address: 1024, dtype: float32, input_register: true}
+  - {key: s,       phase: l1, address: 1026, dtype: float32, input_register: true}
+  - {key: cos_phi, phase: l1, address: 1028, dtype: float32, input_register: true}
+  # Phase B
+  - {key: voltage, phase: l2, address: 1040, dtype: float32, input_register: true}
+  - {key: current, phase: l2, address: 1042, dtype: float32, input_register: true}
+  - {key: p,       phase: l2, address: 1044, dtype: float32, input_register: true}
+  - {key: s,       phase: l2, address: 1046, dtype: float32, input_register: true}
+  - {key: cos_phi, phase: l2, address: 1048, dtype: float32, input_register: true}
+  # Phase C
+  - {key: voltage, phase: l3, address: 1060, dtype: float32, input_register: true}
+  - {key: current, phase: l3, address: 1062, dtype: float32, input_register: true}
+  - {key: p,       phase: l3, address: 1064, dtype: float32, input_register: true}
+  - {key: s,       phase: l3, address: 1066, dtype: float32, input_register: true}
+  - {key: cos_phi, phase: l3, address: 1068, dtype: float32, input_register: true}
+  # Frequenz (nur einmal noetig, Phase A)
+  - {key: frequency, address: 1033, dtype: float32, input_register: true}
