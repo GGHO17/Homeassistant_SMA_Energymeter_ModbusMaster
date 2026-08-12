@@ -80,7 +80,17 @@ class TelegramCountSensor(_Base):
 
     @property
     def extra_state_attributes(self) -> dict:
-        return self._sim.diagnostics
+        data = dict(self._sim.diagnostics)
+        # Alle aktuell gelesenen Messwerte mit ausgeben - so laesst sich
+        # unterscheiden, ob gar nichts ankommt oder nur einzelne Register.
+        pipeline = self._sim.pipeline
+        values = {"p": pipeline.get("p"), "q": pipeline.get("q")}
+        for phase in ("l1", "l2", "l3"):
+            for key in ("p", "q", "current", "voltage"):
+                values[f"{phase}_{key}"] = round(pipeline.get(key, phase), 2)
+        values["frequency"] = round(pipeline.get("frequency"), 3)
+        data["messwerte"] = values
+        return data
 
 
 class DataAgeSensor(_Base):

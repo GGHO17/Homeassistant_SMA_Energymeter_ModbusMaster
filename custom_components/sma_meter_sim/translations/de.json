@@ -75,11 +75,24 @@
       },
       "remove_source": {
         "title": "Quelle entfernen",
-        "data": {"source_index": "Quelle"}
+        "data": {
+          "source_index": "Quelle"
+        }
+      },
+      "test_modbus": {
+        "title": "Testabfrage",
+        "description": "{status}\n\nWortreihenfolge tauschen: {swap}\n\n```\n{values}\n```\n\nSpannungen muessen um 230 V liegen, die Frequenz um 50 Hz. Stimmt das nicht, sind Adressen, Registertyp oder Wortreihenfolge falsch.",
+        "data": {
+          "test_action": "Wie weiter?"
+        }
       }
     },
-    "error": {"broker_required": "Ohne HA-Broker muss ein Broker-Host angegeben werden."},
-    "abort": {"already_configured": "Diese Seriennummer ist bereits eingerichtet."}
+    "error": {
+      "broker_required": "Ohne HA-Broker muss ein Broker-Host angegeben werden."
+    },
+    "abort": {
+      "already_configured": "Diese Seriennummer ist bereits eingerichtet."
+    }
   },
   "options": {
     "step": {
@@ -151,7 +164,16 @@
       },
       "remove_source": {
         "title": "Quelle entfernen",
-        "data": {"source_index": "Quelle"}
+        "data": {
+          "source_index": "Quelle"
+        }
+      },
+      "test_modbus": {
+        "title": "Testabfrage",
+        "description": "{status}\n\nWortreihenfolge tauschen: {swap}\n\n```\n{values}\n```\n\nSpannungen muessen um 230 V liegen, die Frequenz um 50 Hz. Stimmt das nicht, sind Adressen, Registertyp oder Wortreihenfolge falsch.",
+        "data": {
+          "test_action": "Wie weiter?"
+        }
       }
     }
   }

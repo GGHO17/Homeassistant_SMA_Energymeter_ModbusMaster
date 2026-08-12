@@ -67,12 +67,14 @@ def _registers_from_config(conf: dict, profile: DeviceProfile | None) -> list[Re
         ]
     if conf.get(CONF_INVERT_SIGN):
         # Vorzeichenkonvention drehen: p > 0 muss Bezug aus dem Netz sein.
+        # Nur Wirk- und Blindleistung - die Scheinleistung ist ein Betrag und
+        # wuerde negativ beim Kodieren auf 0 abgeschnitten.
         regs = [
             RegisterDef(
                 key=r.key,
                 address=r.address,
                 dtype=r.dtype,
-                scale=r.scale * (-1.0 if r.key in ("p", "q", "s") else 1.0),
+                scale=r.scale * (-1.0 if r.key in ("p", "q") else 1.0),
                 phase=r.phase,
                 input_register=r.input_register,
             )

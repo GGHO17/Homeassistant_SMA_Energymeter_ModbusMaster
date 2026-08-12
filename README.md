@@ -19,6 +19,8 @@ Erste Datenquelle: **PQI-DA smart** über Modbus TCP.
 | Profil Shelly Pro 3EM | steht, aus offizieller Doku |
 | Profil PQI-DA smart (Schnellblock 10 ms) | steht, aus offizieller Datenpunktliste |
 | Register-Scanner (`tools/scan_modbus.py`) | steht |
+| Testabfrage im Einrichtungsdialog | steht |
+| Dienst `reset_energy` | steht |
 | Mehrere Quellen parallel, je eigenes Intervall | steht |
 | Glättung + Energieintegration + Persistenz | steht |
 | Config Flow, Diagnose-Sensoren, HACS-Metadaten | steht |
@@ -87,6 +89,14 @@ Messgeräte wie das PQI-DA smart liefern dagegen **einen vorzeichenbehafteten We
 Die Integration übernimmt die Aufteilung: positiver Wert → Bezug, negativer →
 Lieferung. Erwartet wird also die Konvention *positiv = Bezug aus dem Netz*; zählt
 das Gerät umgekehrt, gibt es im Dialog den Schalter *Vorzeichen umkehren*.
+
+## Testabfrage im Dialog
+
+Beim Anlegen einer Modbus-Quelle wird vor dem Speichern einmal gelesen und das
+Ergebnis angezeigt – mit Plausibilitätsmarkierung für Spannung und Frequenz.
+Aus derselben Maske lässt sich direkt *Wortreihenfolge tauschen* oder
+*Input/Holding tauschen* und erneut lesen, bis die Werte stimmen. Erst dann
+wird die Quelle übernommen.
 
 ## Register herausfinden
 

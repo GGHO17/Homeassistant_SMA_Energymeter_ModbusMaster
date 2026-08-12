@@ -6,7 +6,7 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
 
 from .const import (
     CONF_INTERFACE_IP,
@@ -18,6 +18,7 @@ from .const import (
     DEFAULT_SEND_INTERVAL_MS,
     DEFAULT_SMOOTHING_MS,
     DOMAIN,
+    SERVICE_RESET_ENERGY,
 )
 from .coordinator import MeterSimulator
 from .factory import async_build_sources
@@ -59,9 +60,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await sim.async_start()
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = sim
+    _async_register_services(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_reload))
     return True
+
+
+def _async_register_services(hass: HomeAssistant) -> None:
+    """Dienst zum Nullsetzen der Energiezaehler (einmalig registrieren)."""
+    if hass.services.has_service(DOMAIN, SERVICE_RESET_ENERGY):
+        return
+
+    async def _reset_energy(call: ServiceCall) -> None:
+        for sim in hass.data.get(DOMAIN, {}).values():
+            await sim.async_reset_energy()
+        _LOGGER.info("Energiezaehler zurueckgesetzt")
+
+    hass.services.async_register(DOMAIN, SERVICE_RESET_ENERGY, _reset_energy)
 
 
 async def _async_reload(hass: HomeAssistant, entry: ConfigEntry) -> None:

@@ -46,6 +46,7 @@ from .const import (
     CONF_SOURCE_INDEX,
     CONF_SOURCE_TYPE,
     CONF_SOURCES,
+    CONF_TEST_ACTION,
     CONF_SUSY_ID,
     CONF_TOPIC,
     CONF_TOPICS,
@@ -69,6 +70,7 @@ from .const import (
     SOURCE_MQTT,
 )
 from .profiles import PROFILE_CUSTOM, USER_DIR_NAME, load_profiles, profile_labels
+from .sources.modbus import RegisterDef, async_test_read, format_test_values
 
 METER_SCHEMA = vol.Schema(
     {
@@ -155,9 +157,7 @@ class SourceFlowMixin:
         self._pending = {CONF_SOURCE_TYPE: SOURCE_MODBUS, CONF_REGISTERS: [], **user_input}
         if user_input[CONF_PROFILE] == PROFILE_CUSTOM:
             return await self.async_step_map_register()
-        self._sources.append(self._pending)
-        self._pending = {}
-        return await self.async_step_menu()
+        return await self.async_step_test_modbus()
 
     async def async_step_map_register(self, user_input=None):
         if user_input is None:
@@ -173,9 +173,80 @@ class SourceFlowMixin:
         self._pending[CONF_REGISTERS].append(user_input)
         if again:
             return await self.async_step_map_register()
-        self._sources.append(self._pending)
-        self._pending = {}
-        return await self.async_step_menu()
+        return await self.async_step_test_modbus()
+
+    async def _async_registers_for_test(self) -> list[RegisterDef]:
+        profiles = await self.hass.async_add_executor_job(
+            load_profiles, self.hass.config.path(USER_DIR_NAME)
+        )
+        profile = profiles.get(self._pending.get(CONF_PROFILE, ""))
+        if profile and self._pending.get(CONF_PROFILE) != PROFILE_CUSTOM:
+            return list(profile.registers)
+        return [
+            RegisterDef(
+                key=r[CONF_KEY],
+                address=int(r[CONF_ADDRESS]),
+                dtype=r.get(CONF_DTYPE, "float32"),
+                scale=float(r.get(CONF_SCALE, 1.0)),
+                phase=r.get(CONF_PHASE) or None,
+                input_register=bool(r.get(CONF_INPUT_REGISTER, True)),
+            )
+            for r in self._pending.get(CONF_REGISTERS, [])
+        ]
+
+    async def async_step_test_modbus(self, user_input=None):
+        """Einmal lesen und das Ergebnis zeigen, bevor gespeichert wird."""
+        if user_input is not None:
+            choice = user_input[CONF_TEST_ACTION]
+            if choice == "save":
+                self._sources.append(self._pending)
+                self._pending = {}
+                return await self.async_step_menu()
+            if choice == "retry":
+                return await self.async_step_test_modbus()
+            if choice == "swap":
+                # Wortreihenfolge umschalten und erneut testen
+                self._pending[CONF_WORD_SWAP] = not self._pending.get(
+                    CONF_WORD_SWAP, False
+                )
+                return await self.async_step_test_modbus()
+            if choice == "toggle_space":
+                # Input <-> Holding umschalten (nur bei manueller Zuordnung)
+                for reg in self._pending.get(CONF_REGISTERS, []):
+                    reg[CONF_INPUT_REGISTER] = not reg.get(CONF_INPUT_REGISTER, True)
+                return await self.async_step_test_modbus()
+            self._pending = {}
+            return await self.async_step_menu()
+
+        registers = await self._async_registers_for_test()
+        ok, message, values = await async_test_read(
+            host=self._pending[CONF_HOST],
+            port=self._pending.get(CONF_PORT, DEFAULT_MODBUS_PORT),
+            unit=self._pending.get(CONF_UNIT, DEFAULT_MODBUS_UNIT),
+            registers=registers,
+            word_swap=self._pending.get(CONF_WORD_SWAP, False),
+        )
+
+        actions = {
+            "save": "Uebernehmen",
+            "retry": "Erneut lesen",
+            "swap": "Wortreihenfolge tauschen und erneut lesen",
+            "discard": "Verwerfen",
+        }
+        if self._pending.get(CONF_REGISTERS):
+            actions["toggle_space"] = "Input/Holding tauschen und erneut lesen"
+
+        return self.async_show_form(
+            step_id="test_modbus",
+            data_schema=vol.Schema(
+                {vol.Required(CONF_TEST_ACTION, default="save" if ok else "retry"): vol.In(actions)}
+            ),
+            description_placeholders={
+                "status": ("OK - " if ok else "FEHLER - ") + message,
+                "values": format_test_values(values) if ok else "-",
+                "swap": "an" if self._pending.get(CONF_WORD_SWAP) else "aus",
+            },
+        )
 
     # --- MQTT --------------------------------------------------------------
     async def async_step_add_mqtt(self, user_input=None):

@@ -140,6 +140,29 @@ async def watch(args) -> None:
         client.close()
 
 
+async def dump_raw(args) -> None:
+    """Einen Bereich ungefiltert ausgeben - zeigt auch echte Nullen."""
+    from pymodbus.client import AsyncModbusTcpClient
+
+    start, count = args.raw
+    client = AsyncModbusTcpClient(args.host, port=args.port)
+    if not await client.connect():
+        print(f"Keine Verbindung zu {args.host}:{args.port}")
+        return
+    words = await read_range(client, start, count, args.holding, args.unit)
+    if words is None:
+        print("Lesefehler - anderer Registertyp oder Adresse ausserhalb des Bereichs?")
+    else:
+        print(f"{'Adr':>6}  {'raw':>12}  {'float32':>14}  {'float32 CDAB':>14}")
+        for i in range(0, len(words) - 1, 2):
+            d = decode_all(words, i)
+            print(
+                f"{start + i:>6}  {words[i]:>5} {words[i+1]:>5}  "
+                f"{d['float32 (ABCD)']:>14.4f}  {d['float32 (CDAB)']:>14.4f}"
+            )
+    client.close()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("host")
@@ -149,11 +172,20 @@ def main() -> None:
     ap.add_argument("--end", type=int, default=2000)
     ap.add_argument("--chunk", type=int, default=100)
     ap.add_argument("--holding", action="store_true", help="Holding statt Input")
+    ap.add_argument(
+        "--raw", type=int, nargs=2, metavar=("START", "COUNT"),
+        help="Rohregister ausgeben, z. B. --raw 102 40 (ohne Plausibilitaetsfilter)",
+    )
     ap.add_argument("--watch", type=int, default=None, help="eine Adresse beobachten")
     ap.add_argument("--period", type=float, default=1.0)
     args = ap.parse_args()
 
-    asyncio.run(watch(args) if args.watch is not None else scan(args))
+    if args.raw:
+        asyncio.run(dump_raw(args))
+    elif args.watch is not None:
+        asyncio.run(watch(args))
+    else:
+        asyncio.run(scan(args))
 
 
 if __name__ == "__main__":

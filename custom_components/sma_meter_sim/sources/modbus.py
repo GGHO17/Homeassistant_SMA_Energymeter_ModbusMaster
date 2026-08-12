@@ -235,3 +235,104 @@ class ModbusSource(Source):
             }
         )
         return data
+
+
+async def async_test_read(
+    host: str,
+    port: int,
+    unit: int,
+    registers: list[RegisterDef],
+    word_swap: bool = False,
+    timeout: float = 8.0,
+) -> tuple[bool, str, dict[str, float]]:
+    """Einmalig lesen, um eine Konfiguration zu pruefen.
+
+    Liefert (erfolgreich, Meldung, Werte). Wird vom Einrichtungsdialog benutzt,
+    damit man die Registerkarte vor dem Speichern verifizieren kann.
+    """
+    from pymodbus.client import AsyncModbusTcpClient
+
+    values: dict[str, float] = {}
+    client = AsyncModbusTcpClient(host, port=port, timeout=3)
+    try:
+        connected = await asyncio.wait_for(client.connect(), timeout=timeout)
+        if not connected:
+            return False, f"Keine Verbindung zu {host}:{port}", values
+
+        unit_kwarg = ""
+        blocks = list(_blocks(registers))
+        for block in blocks:
+            start = block[0].address
+            count = max(r.address + r.words for r in block) - start
+            func = (
+                client.read_input_registers
+                if block[0].input_register
+                else client.read_holding_registers
+            )
+            if not unit_kwarg:
+                import inspect
+
+                params = inspect.signature(func).parameters
+                unit_kwarg = next(
+                    (c for c in ("device_id", "slave", "unit") if c in params), ""
+                )
+            kwargs = {unit_kwarg: unit} if unit_kwarg else {}
+            result = await asyncio.wait_for(
+                func(start, count=count, **kwargs), timeout=timeout
+            )
+            if result.isError():
+                space = "Input" if block[0].input_register else "Holding"
+                return (
+                    False,
+                    f"Lesefehler bei {space}-Register {start}..{start + count - 1}: "
+                    f"{result}. Anderer Registertyp oder Adresse ausserhalb des "
+                    f"Bereichs?",
+                    values,
+                )
+            words = result.registers
+            for reg in block:
+                offset = reg.address - start
+                name = f"{reg.phase}.{reg.key}" if reg.phase else reg.key
+                values[name] = (
+                    _decode(reg.dtype, words[offset : offset + reg.words], word_swap)
+                    * reg.scale
+                )
+        return True, f"{len(values)} Werte in {len(blocks)} Lesevorgang(en)", values
+
+    except asyncio.TimeoutError:
+        return False, f"Zeitueberschreitung bei {host}:{port}", values
+    except Exception as err:  # noqa: BLE001
+        return False, f"{type(err).__name__}: {err}", values
+    finally:
+        client.close()
+
+
+def format_test_values(values: dict[str, float]) -> str:
+    """Testergebnis lesbar aufbereiten, mit Plausibilitaetshinweis."""
+    if not values:
+        return "(keine Werte)"
+
+    units = {
+        "p": "W",
+        "q": "var",
+        "s": "VA",
+        "current": "A",
+        "voltage": "V",
+        "frequency": "Hz",
+        "cos_phi": "",
+    }
+    bands = {"voltage": (180, 280), "frequency": (45, 65)}
+
+    lines = []
+    for name, value in values.items():
+        phase, _, key = name.rpartition(".")
+        unit = units.get(key, "")
+        label = f"{phase.upper() + ' ' if phase else 'Summe '}{key}"
+        mark = ""
+        if key in bands:
+            lo, hi = bands[key]
+            mark = "  <-- unplausibel" if not lo <= abs(value) <= hi else "  ok"
+        elif value == 0.0:
+            mark = "  (0)"
+        lines.append(f"{label:<18} {value:>12.2f} {unit}{mark}")
+    return "\n".join(lines)

@@ -170,6 +170,11 @@ class MeterPipeline:
             phases={p: self._block(p) for p in PHASES},
         )
 
+    def reset_energy(self) -> None:
+        """Alle Energiezaehler auf 0 setzen."""
+        self.energy_sum = EnergyIntegrator()
+        self.energy_phase = {p: EnergyIntegrator() for p in PHASES}
+
     # --- Persistenz der Zaehlerstaende -------------------------------------
     def restore(self, data: dict) -> None:
         self.energy_sum = EnergyIntegrator(

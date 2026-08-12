@@ -1,0 +1,6 @@
+reset_energy:
+  name: Energiezaehler zuruecksetzen
+  description: >
+    Setzt die simulierten Energiezaehler aller Instanzen auf 0. Sinnvoll, wenn
+    zwischenzeitlich mit falscher Vorzeichenrichtung gezaehlt wurde und Bezug
+    bzw. Lieferung dadurch in den falschen Zaehler gelaufen sind.
