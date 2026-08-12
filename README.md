@@ -16,11 +16,14 @@ Erste Datenquelle: **PQI-DA smart** über Modbus TCP.
 | Modbus-Quelle mit Blocklesen und fester Taktung | steht, Registerkarte offen |
 | MQTT-Quelle (HA-Broker oder eigener Broker) | steht |
 | Geräteprofile als YAML, beliebig erweiterbar | steht |
-| Profil Shelly Pro 3EM | steht, aus offizieller Doku |
+| Profil Shelly Pro 3EM (Leistung) | steht, aus offizieller Doku |
+| Profil Shelly Pro 3EM Zählerstände (EMData) | steht |
 | Profil PQI-DA smart (Schnellblock 10 ms) | steht, aus offizieller Datenpunktliste |
+| Profil PQI-DA smart Zählerstände (1 s) | steht |
+| Echte Zählerstände statt Integration | steht |
 | Register-Scanner (`tools/scan_modbus.py`) | steht |
 | Testabfrage im Einrichtungsdialog | steht |
-| Dienst `reset_energy` | steht |
+| Dienst `reset_energy` (mit Startwerten) | steht |
 | Mehrere Quellen parallel, je eigenes Intervall | steht |
 | Glättung + Energieintegration + Persistenz | steht |
 | Config Flow, Diagnose-Sensoren, HACS-Metadaten | steht |
@@ -97,6 +100,51 @@ Ergebnis angezeigt – mit Plausibilitätsmarkierung für Spannung und Frequenz.
 Aus derselben Maske lässt sich direkt *Wortreihenfolge tauschen* oder
 *Input/Holding tauschen* und erneut lesen, bis die Werte stimmen. Erst dann
 wird die Quelle übernommen.
+
+## Energiezähler
+
+Das Telegramm enthält je Richtung nicht nur die Momentanleistung, sondern auch
+Energiezähler in Ws (Wirk-, Blind- und Scheinenergie, summiert und je Phase).
+Die Integration bildet sie durch Integration der Leistung und speichert sie alle
+60 s, damit sie einen Neustart überstehen – ein zurückspringender Zähler wäre für
+die Gegenstelle schlimmer als ein ungenauer.
+
+**Besser: echte Zählerstände vom Gerät.** Liefert das Messgerät die Energie schon
+nach Richtung getrennt, werden diese Stände direkt übernommen und die Integration
+rechnet nicht mehr selbst. Dafür gibt es die Messgrößen `e_import`, `e_export`,
+`eq_import`, `eq_export`. Beide unterstützten Geräte können das:
+
+- **PQI-DA smart** → Profil *Zählerstände (1 s)*, Adressen ab 2170
+- **Shelly Pro 3EM** → Profil *Zählerstände (EMData)*, Adressen ab 1162
+
+Jeweils als **zweite** Modbus-Quelle neben dem Leistungsprofil anlegen – die
+Leistung wird schnell gepollt, die Zähler nur einmal pro Sekunde. Diese Werte werden nicht geglättet –
+ein gleitender Mittelwert über einen monoton steigenden Zähler würde ihn
+systematisch zu niedrig machen.
+
+Fällt ein Zählerstand, wird unterschieden:
+
+- **Sturz auf nahezu 0** (unter 1 kWh) → Werksreset des Geräts. Die alten Stände
+  sind damit ungültig und werden komplett verworfen, auch die der übrigen Kanäle
+  und die eigene Integration. Danach wird wieder vom Gerät übernommen.
+- **Sonstiger Rückgang** → Störung oder Lesefehler. Der bisherige Höchststand
+  wird gehalten, damit die Gegenstelle keinen fallenden Zähler sieht.
+
+Beides wird im Log vermerkt. Die Schwelle steht als
+`ENERGY_RESET_THRESHOLD_WS` in `pipeline.py`.
+
+Ohne externe Stände starten die integrierten Zähler bei 0. Über den Dienst
+`sma_meter_sim.reset_energy` lässt sich der Stand des echten Zählers übernehmen:
+
+```yaml
+action: sma_meter_sim.reset_energy
+data:
+  import_kwh: 12345.6
+  export_kwh: 2345.6
+```
+
+Ohne Felder aufgerufen setzt der Dienst alles auf 0 – etwa nachdem versehentlich
+mit falscher Vorzeichenrichtung gezählt wurde.
 
 ## Register herausfinden
 

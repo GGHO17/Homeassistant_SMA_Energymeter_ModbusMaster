@@ -71,8 +71,10 @@ class MeterSimulator:
                 delay = 0
             await asyncio.sleep(delay)
 
-    async def async_reset_energy(self) -> None:
-        self.pipeline.reset_energy()
+    async def async_reset_energy(
+        self, import_ws: float = 0.0, export_ws: float = 0.0
+    ) -> None:
+        self.pipeline.reset_energy(import_ws, export_ws)
         await self._store.async_save(self.pipeline.dump())
 
     async def async_stop(self) -> None:

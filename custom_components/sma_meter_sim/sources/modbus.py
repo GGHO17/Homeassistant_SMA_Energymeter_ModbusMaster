@@ -320,6 +320,10 @@ def format_test_values(values: dict[str, float]) -> str:
         "voltage": "V",
         "frequency": "Hz",
         "cos_phi": "",
+        "e_import": "Ws",
+        "e_export": "Ws",
+        "eq_import": "vars",
+        "eq_export": "vars",
     }
     bands = {"voltage": (180, 280), "frequency": (45, 65)}
 
@@ -332,6 +336,8 @@ def format_test_values(values: dict[str, float]) -> str:
         if key in bands:
             lo, hi = bands[key]
             mark = "  <-- unplausibel" if not lo <= abs(value) <= hi else "  ok"
+        elif key.startswith(("e_", "eq_")) and value:
+            mark = f"  = {value / 3_600_000:.2f} kWh"
         elif value == 0.0:
             mark = "  (0)"
         lines.append(f"{label:<18} {value:>12.2f} {unit}{mark}")

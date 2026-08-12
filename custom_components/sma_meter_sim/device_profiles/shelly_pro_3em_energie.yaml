@@ -1,0 +1,40 @@
+name: Shelly Pro 3EM - Zaehlerstaende (EMData)
+protocol: modbus
+default_interval_ms: 1000
+word_swap: false
+notes: >
+  Echte Zaehlerstaende aus der EMData-Komponente, nach Richtung getrennt -
+  Adressen aus der offiziellen Shelly-Gen2-Doku (EMData, Modbus registers).
+  Die Schreibweise 31162 bedeutet Input-Register mit Offset 1162.
+
+  Als ZWEITE Modbus-Quelle neben dem Leistungsprofil anlegen: Leistung schnell
+  aus der EM-Komponente, Zaehler hier 1x pro Sekunde.
+
+  Einheit im Geraet ist Wh bzw. VARh, das Telegramm braucht Ws bzw. vars.
+  Deshalb scale: 3600 (1 Wh = 3600 Ws).
+
+  Verwendet werden die "perpetual"-Zaehler (1162/1164 sowie 1182/1184 je
+  Phase). Die laufen ueber Neustarts hinweg weiter und werden nur durch
+  EMData.ResetCounters bzw. DeleteAllData genullt - genau das Verhalten, das
+  ein Zaehler haben muss. Die Nicht-perpetual-Varianten (1170/1174) koennen
+  dagegen zurueckgesetzt werden.
+
+  Blindenergie liegt nur je Phase vor (lagging 1178 / leading 1180 usw.) und
+  ist nicht gemappt: sie ist nicht nach Bezug/Lieferung getrennt, sondern nach
+  induktiv/kapazitiv - das passt nicht auf die Felder des Telegramms.
+
+  Ein zweiter EMData auf dem Geraet liegt um 70 Register hoeher.
+
+registers:
+  # Summen, perpetual
+  - {key: e_import, address: 1162, dtype: float32, scale: 3600, input_register: true}
+  - {key: e_export, address: 1164, dtype: float32, scale: 3600, input_register: true}
+  # Phase A, perpetual
+  - {key: e_import, phase: l1, address: 1182, dtype: float32, scale: 3600, input_register: true}
+  - {key: e_export, phase: l1, address: 1184, dtype: float32, scale: 3600, input_register: true}
+  # Phase B, perpetual
+  - {key: e_import, phase: l2, address: 1202, dtype: float32, scale: 3600, input_register: true}
+  - {key: e_export, phase: l2, address: 1204, dtype: float32, scale: 3600, input_register: true}
+  # Phase C, perpetual
+  - {key: e_import, phase: l3, address: 1222, dtype: float32, scale: 3600, input_register: true}
+  - {key: e_export, phase: l3, address: 1224, dtype: float32, scale: 3600, input_register: true}

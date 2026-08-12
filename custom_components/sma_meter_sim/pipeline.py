@@ -9,13 +9,34 @@ Drei Aufgaben:
 from __future__ import annotations
 
 import time
+import logging
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Iterable
 
 from .speedwire import MeterValues
 
+_LOGGER = logging.getLogger(__name__)
+
 PHASES = ("l1", "l2", "l3")
+
+# Zaehlerstaende, die ein Geraet direkt liefern kann. Sie werden NICHT
+# geglaettet (das wuerde einen monoton steigenden Zaehler verfaelschen) und
+# haben Vorrang vor der eigenen Integration.
+ENERGY_KEYS = (
+    "e_import",
+    "e_export",
+    "eq_import",
+    "eq_export",
+    "es_import",
+    "es_export",
+)
+
+# Faellt ein Zaehler unter diese Schwelle, wird das als Werksreset des Geraets
+# gewertet und nicht als Stoerung: die alten Staende werden verworfen und der
+# neue Wert uebernommen. 1 kWh Toleranz, weil zwischen Reset und erstem Lesen
+# schon etwas Energie geflossen sein kann.
+ENERGY_RESET_THRESHOLD_WS = 3_600_000.0
 
 
 class Smoother:
@@ -93,6 +114,8 @@ class MeterPipeline:
         self.energy_phase = {p: EnergyIntegrator() for p in PHASES}
         self.last_update: float | None = None
         self._has_sum_power = False
+        self._energy: dict[str, float] = {}
+        self._energy_warned: set[str] = set()
 
     def _name(self, key: str, phase: str | None) -> str:
         return f"{phase}.{key}" if phase else key
@@ -100,6 +123,12 @@ class MeterPipeline:
     def feed(self, key: str, value: float, phase: str | None = None) -> None:
         """Einen Rohwert einspeisen (aus Modbus- oder MQTT-Quelle)."""
         name = self._name(key, phase)
+
+        if key in ENERGY_KEYS:
+            self._feed_energy(name, float(value))
+            self.last_update = time.monotonic()
+            return
+
         smoother = self._smoothers.get(name)
         if smoother is None:
             smoother = self._smoothers[name] = Smoother(self._smoothing_s)
@@ -130,6 +159,59 @@ class MeterPipeline:
         for key, value, phase in items:
             self.feed(key, value, phase)
 
+    def _feed_energy(self, name: str, value: float) -> None:
+        """Zaehlerstand uebernehmen, ohne Glaettung.
+
+        Zwei Faelle bei einem fallenden Wert:
+          * Sturz auf nahezu 0 -> Werksreset des Geraets. Die alten Staende
+            sind damit ungueltig und werden komplett verworfen.
+          * Sonstiger Rueckgang -> Stoerung oder Lesefehler. Der bisherige
+            Hoechststand wird gehalten, damit die Gegenstelle keinen
+            fallenden Zaehler sieht.
+        """
+        previous = self._energy.get(name)
+        if previous is None or value >= previous:
+            self._energy[name] = value
+            self._energy_warned.discard(name)
+            return
+
+        if value <= ENERGY_RESET_THRESHOLD_WS < previous:
+            _LOGGER.warning(
+                "Zaehlerstand %s auf %.3f kWh gefallen (vorher %.3f kWh) - "
+                "als Geraetereset gewertet, alte Staende werden verworfen",
+                name,
+                value / 3_600_000,
+                previous / 3_600_000,
+            )
+            self._discard_energy_history()
+            self._energy[name] = value
+            return
+
+        if name not in self._energy_warned:
+            self._energy_warned.add(name)
+            _LOGGER.warning(
+                "Zaehlerstand %s ist gefallen (%.3f -> %.3f kWh) - vorheriger "
+                "Wert wird gehalten",
+                name,
+                previous / 3_600_000,
+                value / 3_600_000,
+            )
+
+    def _discard_energy_history(self) -> None:
+        """Alle Zaehlerstaende verwerfen und neu vom Geraet uebernehmen.
+
+        Auch die eigene Integration wird genullt - sie diente nur als
+        Rueckfallebene und passt nach einem Geraetereset nicht mehr.
+        """
+        self._energy.clear()
+        self._energy_warned.clear()
+        self.energy_sum = EnergyIntegrator()
+        self.energy_phase = {p: EnergyIntegrator() for p in PHASES}
+
+    def has_external_energy(self, phase: str | None = None) -> bool:
+        """True, wenn Zaehlerstaende vom Geraet kommen statt integriert werden."""
+        return self._name("e_import", phase) in self._energy
+
     def get(self, key: str, phase: str | None = None, default: float = 0.0) -> float:
         return self._values.get(self._name(key, phase), default)
 
@@ -152,9 +234,16 @@ class MeterPipeline:
             "s_import": s if p >= 0 else 0.0,
             "s_export": s if p < 0 else 0.0,
             "cos_phi": abs(self.get("cos_phi", phase, 1.0)),
-            "e_import": energy.import_ws,
-            "e_export": energy.export_ws,
+            "e_import": self._energy.get(
+                self._name("e_import", phase), energy.import_ws
+            ),
+            "e_export": self._energy.get(
+                self._name("e_export", phase), energy.export_ws
+            ),
         }
+        for key in ("eq_import", "eq_export", "es_import", "es_export"):
+            if (value := self._energy.get(self._name(key, phase))) is not None:
+                block[key] = value
         if phase:
             block["current"] = abs(self.get("current", phase))
             block["voltage"] = self.get("voltage", phase)
@@ -170,10 +259,16 @@ class MeterPipeline:
             phases={p: self._block(p) for p in PHASES},
         )
 
-    def reset_energy(self) -> None:
-        """Alle Energiezaehler auf 0 setzen."""
-        self.energy_sum = EnergyIntegrator()
-        self.energy_phase = {p: EnergyIntegrator() for p in PHASES}
+    def reset_energy(self, import_ws: float = 0.0, export_ws: float = 0.0) -> None:
+        """Energiezaehler setzen - auf 0 oder auf einen Startwert.
+
+        Die Phasenzaehler bekommen je ein Drittel, damit Summe und Straenge
+        zueinander passen.
+        """
+        self.energy_sum = EnergyIntegrator(import_ws, export_ws)
+        self.energy_phase = {
+            p: EnergyIntegrator(import_ws / 3, export_ws / 3) for p in PHASES
+        }
 
     # --- Persistenz der Zaehlerstaende -------------------------------------
     def restore(self, data: dict) -> None:

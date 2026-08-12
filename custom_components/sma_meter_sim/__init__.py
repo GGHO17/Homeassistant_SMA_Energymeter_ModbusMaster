@@ -72,9 +72,16 @@ def _async_register_services(hass: HomeAssistant) -> None:
         return
 
     async def _reset_energy(call: ServiceCall) -> None:
+        # Eingabe in kWh, intern wird in Ws gerechnet (1 kWh = 3.6e6 Ws)
+        import_ws = float(call.data.get("import_kwh", 0.0)) * 3_600_000
+        export_ws = float(call.data.get("export_kwh", 0.0)) * 3_600_000
         for sim in hass.data.get(DOMAIN, {}).values():
-            await sim.async_reset_energy()
-        _LOGGER.info("Energiezaehler zurueckgesetzt")
+            await sim.async_reset_energy(import_ws, export_ws)
+        _LOGGER.info(
+            "Energiezaehler gesetzt: Bezug %.1f kWh, Lieferung %.1f kWh",
+            import_ws / 3_600_000,
+            export_ws / 3_600_000,
+        )
 
     hass.services.async_register(DOMAIN, SERVICE_RESET_ENERGY, _reset_energy)
 

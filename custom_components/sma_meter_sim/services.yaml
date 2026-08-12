@@ -1,6 +1,35 @@
 reset_energy:
-  name: Energiezaehler zuruecksetzen
+  name: Energiezaehler setzen
   description: >
-    Setzt die simulierten Energiezaehler aller Instanzen auf 0. Sinnvoll, wenn
-    zwischenzeitlich mit falscher Vorzeichenrichtung gezaehlt wurde und Bezug
-    bzw. Lieferung dadurch in den falschen Zaehler gelaufen sind.
+    Setzt die simulierten Energiezaehler aller Instanzen. Ohne Angabe werden
+    sie auf 0 gesetzt - z. B. nachdem versehentlich mit falscher
+    Vorzeichenrichtung gezaehlt wurde. Mit Startwerten laesst sich stattdessen
+    der Stand des echten Zaehlers uebernehmen, damit die Energiediagramme im
+    Sunny Portal plausibel aussehen.
+  fields:
+    import_kwh:
+      name: Bezug
+      description: Startwert des Bezugszaehlers in kWh.
+      required: false
+      example: 12345.6
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 100000000
+          step: 0.1
+          unit_of_measurement: kWh
+          mode: box
+    export_kwh:
+      name: Lieferung
+      description: Startwert des Einspeisezaehlers in kWh.
+      required: false
+      example: 2345.6
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 100000000
+          step: 0.1
+          unit_of_measurement: kWh
+          mode: box

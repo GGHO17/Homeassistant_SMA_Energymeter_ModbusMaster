@@ -50,7 +50,19 @@ CONF_REGISTERS = "registers"
 CONF_SOURCE_INDEX = "source_index"
 CONF_TEST_ACTION = "test_action"
 
-MEASURE_KEYS = ["p", "q", "s", "current", "voltage", "cos_phi", "frequency"]
+MEASURE_KEYS = [
+    "p",
+    "q",
+    "s",
+    "current",
+    "voltage",
+    "cos_phi",
+    "frequency",
+    "e_import",
+    "e_export",
+    "eq_import",
+    "eq_export",
+]
 PHASE_CHOICES = ["", "l1", "l2", "l3"]
 DTYPES = ["float32", "float64", "int16", "uint16", "int32", "uint32", "int64"]
 

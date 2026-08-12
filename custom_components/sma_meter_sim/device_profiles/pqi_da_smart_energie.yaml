@@ -1,0 +1,46 @@
+name: A. Eberle PQI-DA smart - Zaehlerstaende (1 s)
+protocol: modbus
+default_interval_ms: 1000
+word_swap: false
+notes: >
+  Echte Zaehlerstaende aus der 1-s-Klasse, bereits nach Richtung getrennt -
+  genau die Struktur, die das SMA-Telegramm erwartet. Damit muss die
+  Integration die Energie nicht mehr aus der Leistung integrieren; die
+  gelieferten Staende haben Vorrang.
+
+  Als ZWEITE Modbus-Quelle neben dem Schnellblock anlegen: die Leistung kommt
+  weiter alle 100 ms aus dem Block ab Adresse 102, die Zaehler hier nur 1x pro
+  Sekunde. Haeufiger waere sinnlos - die Staende aendern sich langsam.
+
+  Einheit im Geraet ist kWh bzw. kvarh, das Telegramm braucht Ws bzw. vars.
+  Deshalb scale: 3600000 (1 kWh = 3.6e6 Ws).
+
+  Nicht gemappt: wt/l1_wt (Netz-Wirkenergie, saldiert) und die Blind-Summen -
+  das Telegramm hat je Richtung ein eigenes Feld, saldierte Werte passen dort
+  nicht hinein.
+
+  Hinweis zur Aufloesung: float32 hat rund 7 signifikante Stellen. Bei einem
+  Stand von 100000 kWh betraegt die kleinste darstellbare Aenderung etwa
+  0,01 kWh - fuer die Regelung ohne Bedeutung.
+
+registers:
+  # Wirkenergie Bezug (wi)
+  - {key: e_import, phase: l1, address: 2178, dtype: float32, scale: 3600000, input_register: false}
+  - {key: e_import, phase: l2, address: 2180, dtype: float32, scale: 3600000, input_register: false}
+  - {key: e_import, phase: l3, address: 2182, dtype: float32, scale: 3600000, input_register: false}
+  - {key: e_import,            address: 2184, dtype: float32, scale: 3600000, input_register: false}
+  # Wirkenergie Abgabe (wo)
+  - {key: e_export, phase: l1, address: 2170, dtype: float32, scale: 3600000, input_register: false}
+  - {key: e_export, phase: l2, address: 2172, dtype: float32, scale: 3600000, input_register: false}
+  - {key: e_export, phase: l3, address: 2174, dtype: float32, scale: 3600000, input_register: false}
+  - {key: e_export,            address: 2176, dtype: float32, scale: 3600000, input_register: false}
+  # Blindenergie Bezug (wri, induktiv)
+  - {key: eq_import, phase: l1, address: 2202, dtype: float32, scale: 3600000, input_register: false}
+  - {key: eq_import, phase: l2, address: 2204, dtype: float32, scale: 3600000, input_register: false}
+  - {key: eq_import, phase: l3, address: 2206, dtype: float32, scale: 3600000, input_register: false}
+  - {key: eq_import,            address: 2208, dtype: float32, scale: 3600000, input_register: false}
+  # Blindenergie Abgabe (wro, induktiv)
+  - {key: eq_export, phase: l1, address: 2194, dtype: float32, scale: 3600000, input_register: false}
+  - {key: eq_export, phase: l2, address: 2196, dtype: float32, scale: 3600000, input_register: false}
+  - {key: eq_export, phase: l3, address: 2198, dtype: float32, scale: 3600000, input_register: false}
+  - {key: eq_export,            address: 2200, dtype: float32, scale: 3600000, input_register: false}
